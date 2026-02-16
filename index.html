@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TANHUTOWN - Admin OS</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+        
+        body { 
+            background-color: #050505; 
+            color: #00ff41; 
+            font-family: 'Fira Code', monospace; 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            overflow: hidden; 
+            background-size: cover;
+            background-position: center;
+            transition: background-image 1s ease-in-out;
+        }
+
+        /* Arka plan karartma katmanı */
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); /* Arka planı terminale uygun karartır */
+            z-index: 1;
+        }
+
+        #terminal { 
+            width: 95vw; max-width: 900px; height: 90vh; 
+            border: 1px solid #00ff41; padding: 20px; 
+            display: flex; flex-direction: column; 
+            background: rgba(13, 13, 13, 0.9); 
+            position: relative; z-index: 5;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.1);
+        }
+
+        #channel-bar { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #008f11; padding-bottom: 10px; }
+        .channel-btn { padding: 5px 15px; border: 1px solid #00ff41; cursor: pointer; font-size: 0.8em; color: #00ff41; background: transparent; }
+        .channel-btn.active { background: #00ff41; color: black; }
+
+        /* Admin Wallpaper Butonu */
+        #admin-wallpaper-btn { 
+            display: none; background: #ff0055; color: white; border: none; 
+            padding: 5px 10px; font-size: 0.7em; cursor: pointer; margin-left: auto; 
+        }
+
+        #messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; margin-bottom: 15px; }
+        .log-line { line-height: 1.4; font-size: 0.85em; }
+        .user { color: #fff; font-weight: bold; cursor: pointer; }
+        
+        #input-line { display: flex; align-items: center; gap: 10px; border-top: 1px solid #008f11; padding-top: 10px; }
+        #message-input { flex: 1; background: transparent; border: none; color: #00ff41; font-family: 'Fira Code', monospace; outline: none; }
+        
+        #login-screen, #ban-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: flex; justify-content: center; align-items: center; z-index: 100; flex-direction: column; text-align: center; }
+        #ban-screen { color: #ff0000; display: none; }
+    </style>
+</head>
+<body>
+
+<div id="overlay"></div>
+
+<div id="terminal">
+    <div id="ban-screen"><h1>[ DEVICE_BANNED ]</h1></div>
+    <div id="login-screen">
+        <p>> TANHUTOWN_OS v4.0</p>
+        <p>> AUTH: <input type="text" id="username-input" style="background:transparent; border:none; border-bottom:1px solid #00ff41; color:#00ff41; outline:none;" autofocus></p>
+    </div>
+
+    <div id="channel-bar">
+        <button id="btn-lobi" class="channel-btn active" onclick="switchChannel('lobi')">[ LOBI ]</button>
+        <button id="btn-lord" class="channel-btn" onclick="switchChannel('lord')">[ LORDUN_KABUL_SALONU ]</button>
+        <label id="admin-wallpaper-btn" for="wallpaper-input">SET_WALLPAPER</label>
+        <input type="file" id="wallpaper-input" accept="image/*" style="display:none;">
+    </div>
+
+    <div id="messages"></div>
+
+    <div id="input-line">
+        <span id="prompt">user@tanhutown:~$</span>
+        <input type="text" id="message-input" autocomplete="off">
+        <button onclick="sendMessage()" style="background:#00ff41; color:black; border:none; padding:5px 15px; cursor:pointer;">EXEC</button>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://texttanhu-default-rtdb.firebaseio.com/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let deviceId = localStorage.getItem('tanhutown_device_id') || 'DEV-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    localStorage.setItem('tanhutown_device_id', deviceId);
+
+    let currentRoom = 'lobi';
+    let currentUser = localStorage.getItem('chatUser');
+    let isAdmin = false;
+
+    // 1. ARKA PLAN DİNLEYİCİ
+    function listenWallpaper() {
+        db.ref('settings/lord_wallpaper').on('value', (s) => {
+            if (currentRoom === 'lord' && s.exists()) {
+                document.body.style.backgroundImage = `url(${s.val()})`;
+            } else {
+                document.body.style.backgroundImage = "none";
+            }
+        });
+    }
+
+    if (currentUser) { checkBan(); startApp(); }
+
+    function checkBan() {
+        db.ref('banned_devices/' + deviceId).once('value', (s) => {
+            if (s.exists()) document.getElementById('ban-screen').style.display = 'flex';
+        });
+    }
+
+    function startApp() {
+        document.getElementById('login-screen').style.display = 'none';
+        if(currentUser.toUpperCase() === "ADMIN") isAdmin = true;
+        listenWallpaper();
+        loadMessages();
+    }
+
+    function switchChannel(room) {
+        if (room === 'lord' && !isAdmin) {
+            if (prompt("LORDUN SALONU ŞİFRESİ:") !== "80085") return alert("ERİŞİM REDDEDİLDİ");
+        }
+        currentRoom = room;
+        
+        // Admin wallpaper butonunu sadece Lord odasında ve Adminse göster
+        document.getElementById('admin-wallpaper-btn').style.display = (isAdmin && room === 'lord') ? 'block' : 'none';
+        
+        document.getElementById('messages').innerHTML = `<p style="color:#008f11">> ODA: ${room.toUpperCase()}</p>`;
+        document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`btn-${room}`).classList.add('active');
+        
+        db.ref(currentRoom).off();
+        listenWallpaper(); // Arka planı odaya göre güncelle
+        loadMessages();
+    }
+
+    // ADMİN: ARKA PLAN YÜKLEME
+    document.getElementById('wallpaper-input').onchange = (e) => {
+        if (!isAdmin) return;
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            db.ref('settings/lord_wallpaper').set(event.target.result);
+            alert("Lordun Kabul Salonu atmosferi güncellendi.");
+        };
+        reader.readAsDataURL(file);
+    };
+
+    function sendMessage() {
+        const val = document.getElementById('message-input').value;
+        if (val) {
+            db.ref(currentRoom).push({ gonderen: currentUser, mesaj: val, devId: deviceId, timestamp: firebase.database.ServerValue.TIMESTAMP });
+            document.getElementById('message-input').value = "";
+        }
+    }
+
+    function loadMessages() {
+        db.ref(currentRoom).limitToLast(40).on("child_added", (s) => {
+            const data = s.val();
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            div.innerHTML = `[${new Date(data.timestamp).toLocaleTimeString()}] <span class="user">${data.gonderen}</span>: ${data.mesaj}`;
+            document.getElementById('messages').appendChild(div);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        });
+    }
+
+    document.getElementById('username-input').onkeypress = (e) => {
+        if (e.key === 'Enter') {
+            let name = e.target.value.trim();
+            if (name.toUpperCase() === "ADMIN" && prompt("ADMIN_PASS:") !== "3169") return alert("RED");
+            currentUser = name;
+            localStorage.setItem('chatUser', name);
+            startApp();
+        }
+    };
+</script>
+</body>
+</html>
