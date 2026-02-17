@@ -3,127 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TANHUTOWN - Broadcast OS</title>
+    <title>TANHUTOWN v6.1</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+        body { background-color: #050505; color: #00ff41; font-family: 'Fira Code', monospace; margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; background-size: cover; background-position: center; transition: background-image 0.8s ease; }
         
-        body { 
-            background-color: #050505; color: #00ff41; font-family: 'Fira Code', monospace; 
-            margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; 
-            background-size: cover; background-position: center; transition: background-image 0.8s ease;
-        }
+        /* DUYURU BANDI */
+        #broadcast-bar { position: fixed; top: 0; left: 0; width: 100%; background: rgba(0, 255, 65, 0.1); border-bottom: 1px solid #00ff41; height: 30px; z-index: 1000; overflow: hidden; display: flex; align-items: center; backdrop-filter: blur(5px); }
+        .marquee { white-space: nowrap; animation: marquee 20s linear infinite; padding-left: 100%; font-size: 0.8em; font-weight: bold; }
+        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
 
-        /* DUYURU BANDI CSS */
-        #broadcast-bar {
-            position: fixed; top: 0; left: 0; width: 100%; background: rgba(0, 255, 65, 0.1);
-            border-bottom: 1px solid #00ff41; height: 30px; z-index: 1000; overflow: hidden;
-            display: flex; align-items: center; backdrop-filter: blur(5px);
-        }
-        .marquee {
-            white-space: nowrap; animation: marquee 20s linear infinite;
-            padding-left: 100%; font-size: 0.8em; font-weight: bold; text-transform: uppercase;
-        }
-        @keyframes marquee {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(-100%, 0); }
-        }
-
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 1; }
-
-        #terminal { 
-            width: 98vw; max-width: 1100px; height: 85vh; margin-top: 30px;
-            border: 1px solid #00ff41; padding: 0; display: flex; flex-direction: column; 
-            background: rgba(13, 13, 13, 0.7); position: relative; z-index: 5;
-            box-shadow: 0 0 30px rgba(0, 255, 65, 0.2); backdrop-filter: blur(10px);
-        }
-
+        #terminal { width: 98vw; max-width: 1100px; height: 85vh; margin-top: 30px; border: 1px solid #00ff41; display: flex; flex-direction: column; background: rgba(13, 13, 13, 0.7); position: relative; z-index: 5; backdrop-filter: blur(10px); }
         #main-content { display: flex; flex: 1; overflow: hidden; }
-
-        /* Sidebar & Listeler */
-        #user-sidebar { width: 240px; border-right: 1px solid #008f11; display: flex; flex-direction: column; background: rgba(0,0,0,0.4); }
-        #sidebar-header { padding: 12px; font-size: 0.75em; border-bottom: 1px solid #008f11; color: #00ff41; }
+        #user-sidebar { width: 240px; border-right: 1px solid #008f11; display: flex; flex-direction: column; }
         #user-list { flex: 1; overflow-y: auto; padding: 10px; list-style: none; margin: 0; font-size: 0.85em; }
+        
+        /* Ban Arşivi */
         #banned-archive { height: 150px; border-top: 1px solid #ff0000; background: rgba(20, 0, 0, 0.4); display: none; flex-direction: column; }
-        #archive-header { padding: 8px; font-size: 0.65em; color: #ff0000; border-bottom: 1px solid #550000; font-weight: bold; }
+        #archive-header { padding: 8px; font-size: 0.65em; color: #ff0000; font-weight: bold; }
         #banned-list { flex: 1; overflow-y: auto; padding: 5px; list-style: none; margin: 0; font-size: 0.75em; }
-        .banned-item { display: flex; justify-content: space-between; align-items: center; color: #ff5555; padding: 3px 5px; border-bottom: 1px solid #330000; }
-        .unban-btn { color: #00ff41; cursor: pointer; font-weight: bold; }
-        .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .online { background: #00ff41; box-shadow: 0 0 5px #00ff41; }
-        .offline { background: #444; }
+        .banned-item { display: flex; justify-content: space-between; color: #ff5555; padding: 3px; border-bottom: 1px solid #330000; }
 
-        /* Context Menu */
-        #admin-context-menu { display: none; position: fixed; background: #0d0d0d; border: 1px solid #00ff41; z-index: 1000; width: 220px; box-shadow: 5px 5px 15px rgba(0,0,0,0.8); }
+        /* Admin Menü */
+        #admin-context-menu { display: none; position: fixed; background: #0d0d0d; border: 1px solid #00ff41; z-index: 2000; width: 200px; box-shadow: 5px 5px 15px black; }
         .context-item { padding: 12px; font-size: 0.75em; cursor: pointer; font-weight: bold; border-bottom: 1px solid #1a1a1a; }
-        .item-ban { color: #ff0000; } .item-delete { color: #ffaa00; } .item-msg-del { color: #00ccff; } .item-broadcast { color: #00ff41; border-top: 1px solid #00ff41; }
+        .item-ban { color: #ff0000; } .item-del { color: #ffaa00; } .item-msg { color: #00ccff; } .item-bcast { color: #00ff41; }
 
-        /* Chat */
-        #chat-area { flex: 1; display: flex; flex-direction: column; padding: 15px; }
-        #messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(0,255,65,0.1); }
+        #messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px; }
         .log-line { line-height: 1.4; font-size: 0.85em; }
-        .chat-img { max-width: 300px; border: 1px solid #00ff41; margin-top: 5px; cursor: pointer; display: block; }
-        #input-line { display: flex; align-items: center; gap: 10px; border-top: 1px solid #008f11; padding-top: 10px; }
-        #message-input { flex: 1; background: transparent; border: none; color: #00ff41; font-family: 'Fira Code', monospace; outline: none; }
-        .btn-ui { background: transparent; color: #00ff41; border: 1px solid #00ff41; padding: 5px 10px; cursor: pointer; font-size: 0.8em; }
-        #send-btn { background: #00ff41; color: black; border: none; padding: 8px 20px; font-weight: bold; cursor: pointer; }
-        #login-screen, #ban-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: flex; justify-content: center; align-items: center; z-index: 1100; flex-direction: column; }
-        .channel-btn { padding: 5px 12px; border: 1px solid #00ff41; cursor: pointer; font-size: 0.7em; color: #00ff41; background: transparent; }
+        .chat-img { max-width: 250px; border: 1px solid #00ff41; margin-top: 5px; }
+        #input-line { display: flex; align-items: center; gap: 10px; border-top: 1px solid #008f11; padding: 10px; }
+        #message-input { flex: 1; background: transparent; border: none; color: #00ff41; outline: none; font-family: 'Fira Code'; }
+        #send-btn { background: #00ff41; border: none; padding: 8px 20px; font-weight: bold; cursor: pointer; }
+        .channel-btn { padding: 5px 10px; border: 1px solid #00ff41; cursor: pointer; font-size: 0.7em; color: #00ff41; background: transparent; }
         .channel-btn.active { background: #00ff41; color: black; }
+        #login-screen, #ban-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: flex; justify-content: center; align-items: center; z-index: 3000; flex-direction: column; }
     </style>
 </head>
 <body>
 
-<div id="broadcast-bar">
-    <div class="marquee" id="broadcast-text">SİSTEM ÇALIŞIYOR... HOŞ GELDİNİZ.</div>
-</div>
-
-<div id="overlay"></div>
+<div id="broadcast-bar"><div class="marquee" id="broadcast-text">YÜKLENİYOR...</div></div>
 
 <div id="admin-context-menu">
-    <div class="context-item item-ban" id="ctx-ban-btn" style="display:none;">BİRİMİ MÜHÜRLE (BAN)</div>
-    <div class="context-item item-delete" id="ctx-del-btn" style="display:none;">VERİLERİ SİL (WIPE)</div>
-    <div class="context-item item-msg-del" id="ctx-msg-del-btn" style="display:none;">MESAJI İMHA ET (DELETE)</div>
-    <div class="context-item item-broadcast" id="ctx-broadcast-btn">DUYURU YAYINLA (BROADCAST)</div>
+    <div class="context-item item-ban" id="btn-ctx-ban" style="display:none;">BİRİMİ MÜHÜRLE</div>
+    <div class="context-item item-del" id="btn-ctx-del" style="display:none;">VERİLERİ SİL</div>
+    <div class="context-item item-msg" id="btn-ctx-msg" style="display:none;">MESAJI İMHA ET</div>
+    <div class="context-item item-bcast" id="btn-ctx-bcast" style="display:none;">DUYURU YAYINLA</div>
 </div>
 
 <div id="terminal">
-    <div id="ban-screen"><h1>[ ERİŞİM ENGELLENDİ ]</h1><p>Bu cihaz mühürlenmiştir.</p></div>
+    <div id="ban-screen"><h1>[ ERİŞİM ENGELLENDİ ]</h1></div>
     <div id="login-screen">
         <div style="border: 1px solid #00ff41; padding: 40px; background: #0d0d0d; text-align: center;">
-            <p>> TANHUTOWN_OS v5.7</p>
-            <input type="text" id="username-input" placeholder="Rumuz..." style="background:transparent; border:none; border-bottom:1px solid #00ff41; color:#00ff41; outline:none; text-align:center; width: 100%; margin-top:20px;" autofocus>
+            <p>> TANHUTOWN_OS v6.1</p>
+            <input type="text" id="username-input" placeholder="Rumuz..." style="background:transparent; border:none; border-bottom:1px solid #00ff41; color:#00ff41; outline:none; text-align:center;" autofocus>
         </div>
     </div>
 
     <div id="main-content">
         <aside id="user-sidebar">
-            <div id="sidebar-header">> BİRİM_LİSTESİ</div>
+            <div style="padding:10px; font-size:0.7em; border-bottom:1px solid #008f11;">> BIRIM_LISTESI</div>
             <ul id="user-list"></ul>
             <div id="banned-archive">
                 <div id="archive-header">MÜHÜRLÜ_ARŞİV</div>
                 <ul id="banned-list"></ul>
             </div>
         </aside>
-
-        <section id="chat-area">
-            <div style="display:flex; justify-content: space-between; border-bottom:1px solid #008f11; padding-bottom:10px; margin-bottom:10px;">
+        <section id="chat-area" style="display:flex; flex-direction:column; flex:1;">
+            <div style="display:flex; justify-content: space-between; padding:10px; border-bottom:1px solid #008f11;">
                 <div style="display:flex; gap:10px;">
-                    <button id="btn-lobi" class="channel-btn active" onclick="switchChannel('lobi')">[ LOBİ ]</button>
-                    <button id="btn-lord" class="channel-btn" onclick="switchChannel('lord')">[ LORD'UN SALONU ]</button>
-                    <label id="admin-wallpaper-btn" for="wallpaper-input" style="display:none; cursor:pointer; font-size: 0.6em; border:1px solid #ff0055; padding: 4px; color:#ff0055;">SET_BG</label>
-                    <input type="file" id="wallpaper-input" accept="image/*" style="display:none;">
+                    <button id="nav-lobi" class="channel-btn active" onclick="switchRoom('lobi')">[ LOBİ ]</button>
+                    <button id="nav-lord" class="channel-btn" onclick="switchRoom('lord')">[ LORD'UN SALONU ]</button>
+                    <label id="btn-set-bg" for="inp-bg" style="display:none; cursor:pointer; font-size:0.6em; border:1px solid #ff0055; padding:4px; color:#ff0055;">SET_BG</label>
+                    <input type="file" id="inp-bg" accept="image/*" style="display:none;">
                 </div>
-                <span onclick="logout()" style="cursor:pointer; color:#ff0000; font-size: 0.75em;">[LOGOUT]</span>
+                <span onclick="logout()" style="cursor:pointer; color:#ff0000; font-size:0.7em;">[LOGOUT]</span>
             </div>
             <div id="messages"></div>
             <div id="input-line">
-                <span id="prompt-label" style="font-size: 0.8em; white-space: nowrap;">user@town:~$</span>
-                <label for="chat-file-input" class="btn-ui">FOTO</label>
-                <input type="file" id="chat-file-input" accept="image/*" style="display:none;">
-                <input type="text" id="message-input" autocomplete="off" placeholder="Mesaj iletin...">
+                <span id="prompt-label" style="font-size:0.8em;">user@town:~$</span>
+                <label for="inp-foto" style="cursor:pointer; color:#00ff41; border:1px solid #00ff41; padding:4px; font-size:0.7em;">FOTO</label>
+                <input type="file" id="inp-foto" accept="image/*" style="display:none;">
+                <input type="text" id="message-input" autocomplete="off">
                 <button id="send-btn" onclick="sendMessage()">İLET</button>
             </div>
         </section>
@@ -142,20 +106,48 @@
     let currentUser = localStorage.getItem('chatUser');
     let isAdmin = false;
 
-    // DUYURU TAKİBİ
-    function listenBroadcast() {
-        db.ref('settings/broadcast').on('value', (s) => {
-            if(s.exists()) document.getElementById('broadcast-text').textContent = s.val();
-        });
+    // MENÜ YÖNETİMİ
+    function showMenu(e, type, data) {
+        if(!isAdmin) return;
+        e.preventDefault();
+        const menu = document.getElementById('admin-context-menu');
+        const items = {
+            ban: document.getElementById('btn-ctx-ban'),
+            del: document.getElementById('btn-ctx-del'),
+            msg: document.getElementById('btn-ctx-msg'),
+            bcast: document.getElementById('btn-ctx-bcast')
+        };
+
+        Object.values(items).forEach(i => i.style.display = 'none');
+
+        if(type === 'user') {
+            items.ban.style.display = 'block'; items.del.style.display = 'block';
+            items.ban.onclick = () => { if(confirm("BAN?")) db.ref('banned_devices/'+data.dev).set({user:data.name}); };
+            items.del.onclick = () => { if(confirm("SİL?")) db.ref('users/'+data.name).remove(); };
+        } else if(type === 'msg') {
+            items.msg.style.display = 'block';
+            items.msg.onclick = () => { if(confirm("İMHA?")) db.ref(currentRoom+'/'+data.id).remove(); };
+        } else if(type === 'bcast') {
+            items.bcast.style.display = 'block';
+            items.bcast.onclick = () => { 
+                let n = prompt("YENİ DUYURU:");
+                if(n) db.ref('settings/broadcast').set(n.toUpperCase());
+            };
+        }
+
+        menu.style.display = 'block';
+        menu.style.left = e.pageX + 'px'; menu.style.top = e.pageY + 'px';
     }
 
+    // BROADCAST DİNLE
+    db.ref('settings/broadcast').on('value', s => { if(s.exists()) document.getElementById('broadcast-text').textContent = s.val(); });
+    document.getElementById('broadcast-bar').oncontextmenu = (e) => showMenu(e, 'bcast');
+
     function checkBan(name) {
-        if (name && name.toUpperCase() === "TANHU") { startApp(); return; }
-        db.ref('banned_devices/' + deviceId).once('value', (s) => {
-            if (s.exists()) {
-                document.getElementById('ban-screen').style.display = 'flex';
-                document.getElementById('login-screen').style.display = 'none';
-            } else startApp();
+        if(name.toUpperCase() === "TANHU") return startApp();
+        db.ref('banned_devices/'+deviceId).once('value', s => {
+            if(s.exists()) document.getElementById('ban-screen').style.display = 'flex';
+            else startApp();
         });
     }
 
@@ -163,140 +155,102 @@
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('ban-screen').style.display = 'none';
         isAdmin = (currentUser.toUpperCase() === "TANHU");
-        if (isAdmin) document.getElementById('banned-archive').style.display = 'flex';
-        
+        if(isAdmin) document.getElementById('banned-archive').style.display = 'flex';
         document.getElementById('prompt-label').textContent = `${currentUser.toLowerCase()}@town:~$`;
-        db.ref('users/' + currentUser).update({ status: 'online', lastDev: deviceId });
-        db.ref('users/' + currentUser).onDisconnect().update({ status: 'offline' });
-        
-        listenLists(); loadMessages(); applyWallpaper(); listenBroadcast();
-    }
-
-    function showMenu(e, type, data) {
-        e.preventDefault();
-        const menu = document.getElementById('admin-context-menu');
-        const ban = document.getElementById('ctx-ban-btn');
-        const del = document.getElementById('ctx-del-btn');
-        const msg = document.getElementById('ctx-msg-del-btn');
-        const bcast = document.getElementById('ctx-broadcast-btn');
-
-        ban.style.display = 'none'; del.style.display = 'none'; msg.style.display = 'none';
-        bcast.style.display = isAdmin ? 'block' : 'none';
-
-        if (type === 'user') {
-            ban.style.display = 'block'; del.style.display = 'block';
-            ban.onclick = () => { if(confirm("BANLA?")) db.ref('banned_devices/'+data.dev).set({user:data.name}); };
-            del.onclick = () => { if(confirm("SİL?")) db.ref('users/'+data.name).remove(); };
-        } else if (type === 'msg') {
-            msg.style.display = 'block';
-            msg.onclick = () => { if(confirm("İMH ET?")) db.ref(currentRoom+'/'+data.id).remove(); };
-        }
-
-        bcast.onclick = () => {
-            let n = prompt("YENİ SİSTEM DUYURUSU:");
-            if(n) db.ref('settings/broadcast').set(n.toUpperCase());
-            menu.style.display = 'none';
-        };
-
-        menu.style.display = 'block';
-        menu.style.left = e.pageX + 'px'; menu.style.top = e.pageY + 'px';
+        db.ref('users/'+currentUser).update({status:'online', lastDev:deviceId});
+        db.ref('users/'+currentUser).onDisconnect().update({status:'offline'});
+        listenLists(); loadMessages(); listenWallpaper();
     }
 
     function listenLists() {
-        db.ref().on('value', (snapshot) => {
+        db.ref().on('value', snap => {
             const list = document.getElementById('user-list');
             const archive = document.getElementById('banned-list');
             list.innerHTML = ''; archive.innerHTML = '';
-            const users = snapshot.child('users').val() || {};
-            const banned = snapshot.child('banned_devices').val() || {};
-            for (let name in users) {
+            const users = snap.child('users').val() || {};
+            const banned = snap.child('banned_devices').val() || {};
+            for(let name in users) {
                 const dev = users[name].lastDev;
-                if (banned[dev]) continue;
+                if(banned[dev]) continue;
                 const li = document.createElement('li');
-                li.className = 'user-item';
-                li.innerHTML = `<span class="status-dot ${users[name].status === 'online' ? 'online' : 'offline'}"></span> ${name}`;
-                li.oncontextmenu = (e) => { if (isAdmin && name.toUpperCase() !== "TANHU") showMenu(e, 'user', {name, dev}); };
+                li.style.padding = '5px';
+                li.innerHTML = `<span class="status-dot ${users[name].status==='online'?'online':'offline'}"></span> ${name}`;
+                li.oncontextmenu = (e) => showMenu(e, 'user', {name, dev});
                 list.appendChild(li);
             }
-            if (isAdmin) {
-                for (let bid in banned) {
+            if(isAdmin) {
+                for(let bid in banned) {
                     const li = document.createElement('li');
                     li.className = 'banned-item';
-                    li.innerHTML = `<span>${banned[bid].user || '???'}</span> <span class="unban-btn" onclick="unban('${bid}')">[X]</span>`;
+                    li.innerHTML = `<span>${banned[bid].user}</span> <span class="unban-btn" onclick="db.ref('banned_devices/${bid}').remove()">[X]</span>`;
                     archive.appendChild(li);
                 }
             }
         });
     }
 
-    // Ekranın boş yerine sağ tıklayınca da duyuru menüsü çıksın
-    document.body.oncontextmenu = (e) => { if (isAdmin) showMenu(e, 'global', null); };
-
     function loadMessages() {
-        db.ref(currentRoom).on("value", (snapshot) => {
+        db.ref(currentRoom).on("value", snap => {
             const container = document.getElementById('messages');
             container.innerHTML = '';
-            const data = snapshot.val();
-            for (let id in data) {
+            const data = snap.val();
+            for(let id in data) {
                 const m = data[id];
                 const div = document.createElement('div');
                 div.className = 'log-line';
-                let html = `[${new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}] <b style="${m.gonderen.toUpperCase()==='TANHU' ? 'color:#4ecca3' : ''}">${m.gonderen}</b>: `;
-                if (m.foto) html += `<br><img src="${m.foto}" class="chat-img" onclick="window.open(this.src)">`;
+                let html = `[${new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}] <b style="${m.gonderen.toUpperCase()==='TANHU'?'color:#4ecca3':''}">${m.gonderen}</b>: `;
+                if(m.foto) html += `<br><img src="${m.foto}" class="chat-img">`;
                 else html += `<span>${m.mesaj}</span>`;
                 div.innerHTML = html;
-                div.oncontextmenu = (e) => { if (isAdmin) showMenu(e, 'msg', {id}); };
+                div.oncontextmenu = (e) => showMenu(e, 'msg', {id});
                 container.appendChild(div);
             }
             container.scrollTop = container.scrollHeight;
         });
     }
 
-    function applyWallpaper() {
-        db.ref('settings/lord_wallpaper').on('value', (s) => {
+    function listenWallpaper() {
+        db.ref('settings/lord_wallpaper').on('value', s => {
             document.body.style.backgroundImage = (currentRoom === 'lord' && s.exists()) ? `url(${s.val()})` : "none";
         });
     }
 
-    function switchChannel(room) {
-        if (room === 'lord' && !isAdmin) { if (prompt("ŞİFRE:") !== "80085") return; }
+    function switchRoom(room) {
+        if(room === 'lord' && !isAdmin && prompt("ŞİFRE:") !== "80085") return;
         currentRoom = room;
-        document.getElementById('admin-wallpaper-btn').style.display = (isAdmin && room === 'lord') ? 'block' : 'none';
+        document.getElementById('btn-set-bg').style.display = (isAdmin && room==='lord') ? 'block' : 'none';
         document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(`btn-${room}`).classList.add('active');
-        document.getElementById('prompt-label').textContent = `${currentUser.toLowerCase()}@${room}:~$`;
-        db.ref(currentRoom).off(); loadMessages(); applyWallpaper();
+        document.getElementById('nav-'+room).classList.add('active');
+        db.ref('lobi').off(); db.ref('lord').off();
+        loadMessages(); listenWallpaper();
     }
 
     function sendMessage() {
         const val = document.getElementById('message-input').value;
-        if (val.trim()) {
-            db.ref(currentRoom).push({ gonderen: currentUser, mesaj: val, timestamp: firebase.database.ServerValue.TIMESTAMP });
-            document.getElementById('message-input').value = "";
+        if(val.trim()) {
+            db.ref(currentRoom).push({gonderen:currentUser, mesaj:val, timestamp:firebase.database.ServerValue.TIMESTAMP});
+            document.getElementById('message-input').value = '';
         }
     }
 
-    document.getElementById('chat-file-input').onchange = (e) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => db.ref(currentRoom).push({ gonderen: currentUser, foto: ev.target.result, timestamp: firebase.database.ServerValue.TIMESTAMP });
-        reader.readAsDataURL(e.target.files[0]);
+    document.getElementById('inp-foto').onchange = (e) => {
+        const r = new FileReader(); r.onload = (ev) => db.ref(currentRoom).push({gonderen:currentUser, foto:ev.target.result, timestamp:firebase.database.ServerValue.TIMESTAMP});
+        r.readAsDataURL(e.target.files[0]);
     };
 
     document.getElementById('username-input').onkeypress = (e) => {
-        if (e.key === 'Enter') {
-            let name = e.target.value.trim();
-            if (name.toUpperCase() === "TANHU" && prompt("KEY:") !== "3169") return;
-            currentUser = name; localStorage.setItem('chatUser', name);
-            checkBan(name);
+        if(e.key === 'Enter') {
+            let n = e.target.value.trim();
+            if(n.toUpperCase()==="TANHU" && prompt("KEY:")!=="3169") return;
+            currentUser = n; localStorage.setItem('chatUser', n); checkBan(n);
         }
     };
 
-    if (currentUser) checkBan(currentUser);
+    if(currentUser) checkBan(currentUser);
     window.onclick = () => document.getElementById('admin-context-menu').style.display = 'none';
-    document.getElementById('message-input').onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+    document.getElementById('message-input').onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
     function logout() { db.ref('users/'+currentUser).update({status:'offline'}); localStorage.removeItem('chatUser'); location.reload(); }
-    function unban(bid) { if (confirm("KALDIR?")) db.ref('banned_devices/' + bid).remove(); }
-    document.getElementById('wallpaper-input').onchange = (e) => {
+    document.getElementById('inp-bg').onchange = (e) => {
         const r = new FileReader(); r.onload = (ev) => db.ref('settings/lord_wallpaper').set(ev.target.result);
         r.readAsDataURL(e.target.files[0]);
     };
