@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TANHUTOWN v6.4</title>
+    <title>TANHUTOWN v6.5</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
@@ -46,7 +46,7 @@
 </head>
 <body>
 
-<div id="broadcast-bar"><div class="marquee" id="broadcast-text">TANHUTOWN v6.4 AKTİF...</div></div>
+<div id="broadcast-bar"><div class="marquee" id="broadcast-text">TANHUTOWN v6.5 GİRİŞ PORTALİ AKTİF...</div></div>
 <div id="overlay"></div>
 
 <div id="admin-context-menu">
@@ -61,8 +61,9 @@
     <div id="ban-screen"><h1>[ ERİŞİM ENGELLENDİ ]</h1></div>
     <div id="login-screen">
         <div style="border: 1px solid #00ff41; padding: 40px; background: #0d0d0d; text-align: center;">
-            <p>> TANHUTOWN v6.4</p>
-            <input type="text" id="username-input" placeholder="Rumuz..." style="background:transparent; border:none; border-bottom:1px solid #00ff41; color:#00ff41; outline:none; text-align:center;" autofocus>
+            <p>> TANHUTOWN v6.5</p>
+            <input type="text" id="username-input" placeholder="Rumuz..." style="background:transparent; border:none; border-bottom:1px solid #00ff41; color:#00ff41; outline:none; text-align:center;" autocomplete="off">
+            <p style="font-size:0.6em; margin-top:10px; color:#555;">(Lütfen rumuz girip ENTER'a basın)</p>
         </div>
     </div>
 
@@ -116,23 +117,65 @@
     let isAdmin = false;
     let currentPrivateRoom = null;
 
-    function trackPresence(name) {
-        const userRef = db.ref('users/' + name);
+    // GİRİŞ FONKSİYONU (GARANTİLİ FIX)
+    function processLogin(name) {
+        if (!name) return;
+        
+        // Tanhu Protokolü
+        if (name.toUpperCase() === "TANHU") {
+            const key = prompt("TANHU_KEY:");
+            if (key === "3169") {
+                currentUser = "TANHU";
+                localStorage.setItem('chatUser', "TANHU");
+                startApp();
+            } else {
+                alert("ERİŞİM REDDEDİLDİ.");
+            }
+            return;
+        }
+
+        // Normal Kullanıcı Ban Kontrolü
+        db.ref('banned_devices/' + deviceId).once('value', snap => {
+            if (snap.exists()) {
+                document.getElementById('ban-screen').style.display = 'flex';
+                document.getElementById('login-screen').style.display = 'none';
+            } else {
+                currentUser = name;
+                localStorage.setItem('chatUser', name);
+                startApp();
+            }
+        });
+    }
+
+    function startApp() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('ban-screen').style.display = 'none';
+        
+        isAdmin = (currentUser.toUpperCase() === "TANHU");
+        
+        if (isAdmin) {
+            document.getElementById('banned-archive').style.display = 'flex';
+            document.getElementById('overseer-panel').style.display = 'block';
+        }
+
+        const userRef = db.ref('users/' + currentUser);
         userRef.update({ status: 'online', lastDev: deviceId });
         userRef.onDisconnect().update({ status: 'offline' });
-        
-        db.ref('users/' + name + '/invites').on('value', snap => {
-            const invite = snap.val();
-            if (invite && invite.from !== name) {
-                if (confirm(invite.from + " seni arka odaya çağırıyor. Gidilsin mi?")) {
-                    currentPrivateRoom = invite.room;
+
+        // Davetleri Dinle
+        db.ref('users/' + currentUser + '/invites').on('value', snap => {
+            const inv = snap.val();
+            if (inv && inv.from !== currentUser) {
+                if (confirm(inv.from + " arka odaya çağırıyor. Gidilsin mi?")) {
+                    currentPrivateRoom = inv.room;
                     document.getElementById('nav-private').style.display = 'block';
-                    switchRoom(currentPrivateRoom);
+                    switchRoom(inv.room);
                 }
-                db.ref('users/' + name + '/invites').remove();
+                db.ref('users/' + currentUser + '/invites').remove();
             }
         });
 
+        // Lord İçin Arka Odaları Dinle
         if (isAdmin) {
             db.ref('active_private_rooms').on('value', snap => {
                 const list = document.getElementById('active-rooms-list');
@@ -147,43 +190,12 @@
                 }
             });
         }
+
+        document.getElementById('prompt-label').textContent = `${currentUser.toLowerCase()}@town:~$`;
+        listenLists(); loadMessages(); listenWallpaper();
     }
 
-    function showMenu(e, type, data) {
-        e.preventDefault();
-        const menu = document.getElementById('admin-context-menu');
-        const b = { ban: document.getElementById('btn-ctx-ban'), del: document.getElementById('btn-ctx-del'), msg: document.getElementById('btn-ctx-msg'), bc: document.getElementById('btn-ctx-bcast'), priv: document.getElementById('btn-ctx-private') };
-        Object.values(b).forEach(i => i.style.display = 'none');
-
-        if(type === 'user') {
-            if (isAdmin && data.name.toUpperCase() !== "TANHU") {
-                b.ban.style.display = 'block'; b.del.style.display = 'block';
-                b.ban.onclick = () => { if(confirm("BAN?")) db.ref('banned_devices/'+data.dev).set({user:data.name}); };
-                b.del.onclick = () => { if(confirm("SİL?")) db.ref('users/'+data.name).remove(); };
-            }
-            if (data.name !== currentUser) {
-                b.priv.style.display = 'block';
-                b.priv.onclick = () => {
-                    const roomID = "private_" + [currentUser, data.name].sort().join("_");
-                    db.ref('users/' + data.name + '/invites').set({ from: currentUser, room: roomID });
-                    db.ref('active_private_rooms/' + roomID).set(true);
-                    currentPrivateRoom = roomID;
-                    document.getElementById('nav-private').style.display = 'block';
-                    switchRoom(roomID);
-                };
-            }
-        } else if(type === 'msg' && isAdmin) {
-            b.msg.style.display = 'block';
-            b.msg.onclick = () => { if(confirm("İMHA?")) db.ref(currentRoom+'/'+data.id).remove(); };
-        } else if(type === 'bcast' && isAdmin) {
-            b.bc.style.display = 'block';
-            b.bc.onclick = () => { let n = prompt("DUYURU:"); if(n) db.ref('settings/broadcast').set(n.toUpperCase()); };
-        }
-
-        menu.style.display = 'block';
-        menu.style.left = e.pageX + 'px'; menu.style.top = e.pageY + 'px';
-    }
-
+    // LISTELER
     function listenLists() {
         db.ref().on('value', snap => {
             const listContainer = document.getElementById('user-list');
@@ -191,6 +203,7 @@
             listContainer.innerHTML = ''; archiveContainer.innerHTML = '';
             const users = snap.child('users').val() || {};
             const banned = snap.child('banned_devices').val() || {};
+            
             for(let name in users) {
                 const uData = users[name];
                 if(banned[uData.lastDev]) continue;
@@ -211,6 +224,44 @@
         });
     }
 
+    // ADMIN MENÜ
+    function showMenu(e, type, data) {
+        if(!isAdmin) return;
+        e.preventDefault();
+        const menu = document.getElementById('admin-context-menu');
+        const b = { ban: document.getElementById('btn-ctx-ban'), del: document.getElementById('btn-ctx-del'), msg: document.getElementById('btn-ctx-msg'), bc: document.getElementById('btn-ctx-bcast'), priv: document.getElementById('btn-ctx-private') };
+        Object.values(b).forEach(i => i.style.display = 'none');
+
+        if(type === 'user') {
+            if (isAdmin && data.name.toUpperCase() !== "TANHU") {
+                b.ban.style.display = 'block'; b.del.style.display = 'block';
+                b.ban.onclick = () => { if(confirm("BAN?")) db.ref('banned_devices/'+data.dev).set({user:data.name}); menu.style.display='none'; };
+                b.del.onclick = () => { if(confirm("SİL?")) db.ref('users/'+data.name).remove(); menu.style.display='none'; };
+            }
+            if (data.name !== currentUser) {
+                b.priv.style.display = 'block';
+                b.priv.onclick = () => {
+                    const roomID = "private_" + [currentUser, data.name].sort().join("_");
+                    db.ref('users/' + data.name + '/invites').set({ from: currentUser, room: roomID });
+                    db.ref('active_private_rooms/' + roomID).set(true);
+                    currentPrivateRoom = roomID;
+                    document.getElementById('nav-private').style.display = 'block';
+                    switchRoom(roomID);
+                    menu.style.display='none';
+                };
+            }
+        } else if(type === 'msg') {
+            b.msg.style.display = 'block';
+            b.msg.onclick = () => { if(confirm("İMHA?")) db.ref(currentRoom+'/'+data.id).remove(); menu.style.display='none'; };
+        } else if(type === 'bcast') {
+            b.bc.style.display = 'block';
+            b.bc.onclick = () => { let n = prompt("DUYURU:"); if(n) db.ref('settings/broadcast').set(n.toUpperCase()); menu.style.display='none'; };
+        }
+
+        menu.style.display = 'block';
+        menu.style.left = e.pageX + 'px'; menu.style.top = e.pageY + 'px';
+    }
+
     function switchRoom(room) {
         if(room === 'lord' && !isAdmin && prompt("ŞİFRE:") !== "80085") return;
         db.ref(currentRoom).off();
@@ -220,18 +271,6 @@
         if(room === currentPrivateRoom) document.getElementById('nav-private').classList.add('active');
         else if(document.getElementById('nav-'+room)) document.getElementById('nav-'+room).classList.add('active');
         loadMessages(); listenWallpaper();
-    }
-
-    function startApp() {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('ban-screen').style.display = 'none';
-        isAdmin = (currentUser.toUpperCase() === "TANHU");
-        if(isAdmin) {
-            document.getElementById('banned-archive').style.display = 'flex';
-            document.getElementById('overseer-panel').style.display = 'block';
-        }
-        trackPresence(currentUser);
-        listenLists(); loadMessages(); listenWallpaper();
     }
 
     function loadMessages() {
@@ -268,23 +307,13 @@
         }
     }
 
+    document.getElementById('username-input').onkeypress = (e) => { if(e.key === 'Enter') processLogin(e.target.value.trim()); };
     document.getElementById('broadcast-bar').oncontextmenu = (e) => showMenu(e, 'bcast');
     db.ref('settings/broadcast').on('value', s => { if(s.exists()) document.getElementById('broadcast-text').textContent = s.val(); });
-
     document.getElementById('inp-foto').onchange = (e) => {
         const r = new FileReader(); r.onload = (ev) => db.ref(currentRoom).push({gonderen:currentUser, foto:ev.target.result, timestamp:firebase.database.ServerValue.TIMESTAMP});
         r.readAsDataURL(e.target.files[0]);
     };
-
-    document.getElementById('username-input').onkeypress = (e) => {
-        if(e.key === 'Enter') {
-            let n = e.target.value.trim();
-            if(!n) return;
-            if(n.toUpperCase()==="TANHU" && prompt("KEY:")!=="3169") return;
-            currentUser = n; localStorage.setItem('chatUser', n); checkBan(n);
-        }
-    };
-
     if(currentUser) checkBan(currentUser);
     window.onclick = () => document.getElementById('admin-context-menu').style.display = 'none';
     document.getElementById('message-input').onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
