@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TANHUTOWN v7.0</title>
+    <title>TANHUTOWN v7.1</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
@@ -25,7 +25,7 @@
         .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
         .online { background: #00ff41; box-shadow: 0 0 8px #00ff41; }
         .offline { background: #444; }
-        #admin-context-menu { display: none; position: fixed; background: #0d0d0d; border: 1px solid #00ff41; z-index: 3000; width: 220px; }
+        #admin-context-menu { display: none; position: fixed; background: #0d0d0d; border: 1px solid #00ff41; z-index: 3000; width: 220px; box-shadow: 5px 5px 20px black; }
         .context-item { padding: 12px; font-size: 0.75em; cursor: pointer; font-weight: bold; border-bottom: 1px solid #1a1a1a; }
         .item-ban { color: #ff0000; } .item-del { color: #ffaa00; } .item-msg { color: #00ccff; } .item-bcast { color: #00ff41; } .item-private { color: #ff00ff; }
         #messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 15px; }
@@ -41,7 +41,7 @@
 </head>
 <body>
 
-<div id="broadcast-bar"><div class="marquee" id="broadcast-text">TANHUTOWN v7.0: KRİTİK ODA FİXİ UYGULANDI...</div></div>
+<div id="broadcast-bar"><div class="marquee" id="broadcast-text">TANHUTOWN v7.1 AKTİF...</div></div>
 
 <div id="admin-context-menu">
     <div class="context-item item-ban" id="btn-ctx-ban">BİRİMİ MÜHÜRLE</div>
@@ -55,7 +55,7 @@
     <div id="ban-screen"><h1>[ ERİŞİM ENGELLENDİ ]</h1></div>
     <div id="login-screen">
         <div style="border: 1px solid #00ff41; padding: 40px; background: #0d0d0d; text-align: center;">
-            <p>> TANHUTOWN v7.0</p>
+            <p>> TANHUTOWN v7.1</p>
             <input type="text" id="username-input" placeholder="Rumuz..." style="background:transparent; border:none; border-bottom:1px solid #00ff41; color:#00ff41; outline:none; text-align:center;" autocomplete="off">
         </div>
     </div>
@@ -138,11 +138,10 @@
         userRef.update({ status: 'online', lastDev: deviceId });
         userRef.onDisconnect().update({ status: 'offline' });
 
-        // ÖZEL DAVET DİNLEME
         db.ref('users/' + currentUser + '/invites').on('value', snap => {
             const inv = snap.val();
             if (inv && inv.from !== currentUser) {
-                if (confirm(inv.from + " seninle özel konuşmak istiyor. Geçilsin mi?")) {
+                if (confirm(inv.from + " seninle arka odaya geçmek istiyor. Gidilsin mi?")) {
                     currentPrivateRoom = inv.room;
                     document.getElementById('nav-private').style.display = 'block';
                     switchRoom(inv.room);
@@ -151,7 +150,6 @@
             }
         });
 
-        // LORD İÇİN TÜM ODALARI DİNLE
         if (isAdmin) {
             db.ref('active_private_rooms').on('value', snap => {
                 const list = document.getElementById('active-rooms-list');
@@ -210,13 +208,21 @@
         const menu = document.getElementById('admin-context-menu');
         const b = { ban: document.getElementById('btn-ctx-ban'), del: document.getElementById('btn-ctx-del'), msg: document.getElementById('btn-ctx-msg'), bc: document.getElementById('btn-ctx-bcast'), priv: document.getElementById('btn-ctx-private') };
         Object.values(b).forEach(i => i.style.display = 'none');
+
         if(type === 'user') {
-            if (isAdmin && data.dev !== deviceId) { b.ban.style.display = 'block'; b.del.style.display = 'block'; }
+            // Admin Menüsü: Tanhu ise ve hedef o anki aktif deviceId değilse (veya her türlü) seçenekleri göster
+            if (isAdmin) {
+                b.ban.style.display = 'block'; 
+                b.del.style.display = 'block';
+                b.ban.onclick = () => { if(confirm(data.name + " BANLANSIN MI?")) db.ref('banned_devices/'+data.dev).set({user:data.name}); menu.style.display='none'; };
+                b.del.onclick = () => { if(confirm(data.name + " VERİLERİ SİLİNSİN MI?")) db.ref('users/'+data.name).remove(); menu.style.display='none'; };
+            }
+            // Özel Oda Daveti
             if (data.name !== currentUser) {
                 b.priv.style.display = 'block';
                 b.priv.onclick = () => {
                     const roomID = "private_" + [currentUser, data.name].sort().join("_");
-                    db.ref('active_private_rooms/' + roomID).set(true); // ODAYI ÖNCE AKTİF ET
+                    db.ref('active_private_rooms/' + roomID).set(true);
                     db.ref('users/' + data.name + '/invites').set({ from: currentUser, room: roomID });
                     currentPrivateRoom = roomID;
                     document.getElementById('nav-private').style.display = 'block';
@@ -250,19 +256,12 @@
             const container = document.getElementById('messages');
             container.innerHTML = '';
             const data = snap.val();
-            // FİX: Sadece oda tamamen silindiyse lobiye at
             if(data === null && currentRoom.includes('private')) {
                 db.ref('active_private_rooms/'+currentRoom).once('value', s => {
-                    if(!s.exists()) {
-                        document.getElementById('nav-private').style.display = 'none';
-                        switchRoom('lobi');
-                    }
+                    if(!s.exists()) { document.getElementById('nav-private').style.display = 'none'; switchRoom('lobi'); }
                 });
             }
-            if(!data) {
-                container.innerHTML = '<div style="color:#333; font-size:0.7em;">> Mesaj bekleniyor...</div>';
-                return;
-            }
+            if(!data) { container.innerHTML = '<div style="color:#333; font-size:0.7em;">> Mesaj bekleniyor...</div>'; return; }
             for(let id in data) {
                 const m = data[id];
                 if(!m.gonderen) continue;
